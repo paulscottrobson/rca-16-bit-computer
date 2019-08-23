@@ -1,0 +1,156 @@
+# ********************************************************************************
+# ********************************************************************************
+#
+#							18016 CPU Definition
+#							====================
+#
+#		Changes from 1801 => 18016:
+#
+#			(1) Every register is double size (16 bit data,32 bit address)
+#			(2) Immediate/Branch take 2 byte operands in low-high order.
+#			(3) Data to/from memory and I/O is done in 16 bit chunks
+#			(4) LDA/RET/DIS/OUT adjust memory by two rather than one.
+#
+# ********************************************************************************
+# ********************************************************************************
+#
+#		Registers:
+#					R0-RF 	32 bit
+#					D 		16 bit
+#					DF,IE 	1 bit
+#					P,X 	4 bits
+#					pP,pX 	pointers to P and X.
+#
+#		Others:
+#					MA 		32 bit memory address register
+#					MB 		16 bit memory buffer register
+#					temp32 	32 bit work area
+#					regAddr	Array of pointers to R0-RF
+#
+#	@X 		Hexadecimal version of lower 4 bits
+#	@P 		0-7 from lower 3 bits
+#	@F 		1-4 from lower 2 bits
+#
+# ********************************************************************************
+#								 Utility stuff
+# ********************************************************************************
+
+:#define SETP(n) 		P = (n);*pP = regAddr[n]
+:#define SETX(n) 		X = (n);*pX = regAddr[n]
+
+# ********************************************************************************
+#								Reset Processor
+# ********************************************************************************
+:
+:	static void Reset18016(void) {
+:		SETP(0);							// P = 0
+:		R0 = 0;								// R0 (e.g. initial P) to zero.
+:		IE = 1;								// Enable interrupt
+:		DF &= 1;D &= 0xFFFF;				// Make sure values are legitimate
+:		SETX(X & 0x0F);						// in non 32 bit registers.
+:	}
+:
+# ********************************************************************************
+#								Interrupt Handler
+# ********************************************************************************
+:
+:	static void Interrupt18016(void) {
+:		if (IE != 0) {
+:			T = (X << 4 | P);				// Put X,P in T
+:			SETX(2);						// Set X to R2
+:			SETP(1);						// Set P to R1	
+:			IE = 0;							// Disable further interrupts.
+:		}
+:	}
+:
+# ********************************************************************************
+#								Register Operations
+# ********************************************************************************
+
+10-1F	"INC R@X"		R@X++
+20-2F 	"DEC R@X"		R@X--
+
+80-8F 	"GLO R@X"		D = R@X & 0xFFFF
+90-9F 	"GHI R@X"		D = (R@X >> 16)
+A0-AF 	"PLO R@X"		R@X = (R@X & 0xFFFF0000) | D
+B0-BF 	"PHI R@X"		R@X = (R@X & 0x0000FFFF) | (D << 16)
+
+# ********************************************************************************
+#								  Memory Reference
+# ********************************************************************************
+
+40-4F 	"LDA R@X"		MA = R@X;R@X += 2;READ16();D = MB
+50-5F 	"STA R@X"		MA = R@X;MB = D;WRITE16()
+
+# ********************************************************************************
+#									ALU Operations
+# ********************************************************************************
+
+:#define ADD(n1,n2,n2)	temp32 = (n1)+(n2)+(n3);D = temp32 & 0xFFFF;DF = (temp32 >> 16) & 1
+
+F0 		"LDX"			MA = *pX;READ16();D = MB
+
+F1 		"OR" 			MA = *pX;READ16();D |= MB
+F2 		"AND" 			MA = *pX;READ16();D &= MB
+F3 		"XOR" 			MA = *pX;READ16();D ^= MB
+
+F4 		"ADD"			MA = *pX;READ16();ADD(D,MB,0)
+F5 		"SD"			MA = *pX;READ16();ADD(D ^ 0xFFFF,MB,1)
+F7 		"SM"			MA = *pX;READ16();ADD(D,MB ^ 0xFFFF,1)
+
+F8 		"LDI #1"		FETCH16();D = MB
+
+F9 		"ORI #1" 		FETCH16();D |= MB
+FA 		"ANI #1" 		FETCH16();D &= MB
+FB 		"XRI #1" 		FETCH16();D ^= MB
+
+FC 		"ADI #1"		FETCH16();ADD(D,MB,0)
+FD 		"SDI #1"		FETCH16();ADD(D ^ 0xFFFF,MB,1)
+FF 		"SMI #1"		FETCH16();ADD(D,MB ^ 0xFFFF,1)
+
+F6 		"SHR"			DF = D & 1;D = (D >> 1)
+
+# ********************************************************************************
+#										Branching
+# ********************************************************************************
+
+:#define BRANCH(t) 		FETCH16();if (t) { *pP = ((*pP) & 0xFFFF0000) | MB; }
+
+30 		"BR #1"			BRANCH(1)
+32 		"BZ #1"			BRANCH(D == 0)
+33 		"BDF #1"		BRANCH(DF != 0)
+34-37	"B@F #1"		BRANCH(EFLAG(@F))
+
+38 		"SKP"			BRANCH(0)
+3A 		"BNZ #1"		BRANCH(D != 0)
+3B 		"BNF #1"		BRANCH(DF == 0)
+3C-3F	"BN@F #1"		BRANCH(EFLAG(@F) == 0)
+
+# ********************************************************************************
+#									Control
+# ********************************************************************************
+
+00		"IDL"			(*pP)--
+
+D0-DF 	"SEP R@R"		SETP(0x@R)
+E0-EF 	"SEX R@R"		SETX(0x@R)
+
+70 		"RET"			Return18016();IE = 1
+71 		"DIS"			Return18016();IE = 0
+
+78 		"SAV"			MA = *pX;MB = T;WRITE16()
+
+:	static void Return18016() {
+:		MA = *pX;READ16();(*pX) += 2;			// Read X,P exit values, bump old X by 2
+:		SETX(MB >> 4);							// Update X,P with new values.
+:		SETP(MB & 0x0F);
+:	}
+
+# ********************************************************************************
+#							Input/Output Word Transfer
+# ********************************************************************************
+
+61-67 	"OUT @P"		MA = *pX;(*pX) += 2;READ16();OUTPUT@P(MB)
+
+69-6F 	"INP @P"		MA = *pX;MB = INPUT@P();WRITE16()
+
