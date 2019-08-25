@@ -188,4 +188,3 @@ CPUSTATUS *CPUGetStatus(void) {
 	return &cpu;
 }
 #endif
-

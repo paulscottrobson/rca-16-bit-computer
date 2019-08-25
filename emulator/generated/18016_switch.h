@@ -64,33 +64,33 @@ case 0x2e: // *** $2e dec re ***
 	RE--;break;
 case 0x2f: // *** $2f dec rf ***
 	RF--;break;
-case 0x30: // *** $30 br #1 ***
+case 0x30: // *** $30 br # ***
 	BRANCH(1);break;
-case 0x32: // *** $32 bz #1 ***
+case 0x32: // *** $32 bz # ***
 	BRANCH(D == 0);break;
-case 0x33: // *** $33 bdf #1 ***
+case 0x33: // *** $33 bdf # ***
 	BRANCH(DF != 0);break;
-case 0x34: // *** $34 b1 #1 ***
+case 0x34: // *** $34 b1 # ***
 	BRANCH(EFLAG1());break;
-case 0x35: // *** $35 b2 #1 ***
+case 0x35: // *** $35 b2 # ***
 	BRANCH(EFLAG2());break;
-case 0x36: // *** $36 b3 #1 ***
+case 0x36: // *** $36 b3 # ***
 	BRANCH(EFLAG3());break;
-case 0x37: // *** $37 b4 #1 ***
+case 0x37: // *** $37 b4 # ***
 	BRANCH(EFLAG4());break;
 case 0x38: // *** $38 skp ***
 	BRANCH(0);break;
-case 0x3a: // *** $3a bnz #1 ***
+case 0x3a: // *** $3a bnz # ***
 	BRANCH(D != 0);break;
-case 0x3b: // *** $3b bnf #1 ***
+case 0x3b: // *** $3b bnf # ***
 	BRANCH(DF == 0);break;
-case 0x3c: // *** $3c bn1 #1 ***
+case 0x3c: // *** $3c bn1 # ***
 	BRANCH(EFLAG1() == 0);break;
-case 0x3d: // *** $3d bn2 #1 ***
+case 0x3d: // *** $3d bn2 # ***
 	BRANCH(EFLAG2() == 0);break;
-case 0x3e: // *** $3e bn3 #1 ***
+case 0x3e: // *** $3e bn3 # ***
 	BRANCH(EFLAG3() == 0);break;
-case 0x3f: // *** $3f bn4 #1 ***
+case 0x3f: // *** $3f bn4 # ***
 	BRANCH(EFLAG4() == 0);break;
 case 0x40: // *** $40 lda r0 ***
 	MA = R0;R0 += 2;READ16();D = MB;break;
@@ -398,17 +398,17 @@ case 0xf6: // *** $f6 shr ***
 	DF = D & 1;D = (D >> 1);break;
 case 0xf7: // *** $f7 sm ***
 	MA = *pX;READ16();ADD(D,MB ^ 0xFFFF,1);break;
-case 0xf8: // *** $f8 ldi #1 ***
+case 0xf8: // *** $f8 ldi # ***
 	FETCH16();D = MB;break;
-case 0xf9: // *** $f9 ori #1 ***
+case 0xf9: // *** $f9 ori # ***
 	FETCH16();D |= MB;break;
-case 0xfa: // *** $fa ani #1 ***
+case 0xfa: // *** $fa ani # ***
 	FETCH16();D &= MB;break;
-case 0xfb: // *** $fb xri #1 ***
+case 0xfb: // *** $fb xri # ***
 	FETCH16();D ^= MB;break;
-case 0xfc: // *** $fc adi #1 ***
+case 0xfc: // *** $fc adi # ***
 	FETCH16();ADD(D,MB,0);break;
-case 0xfd: // *** $fd sdi #1 ***
+case 0xfd: // *** $fd sdi # ***
 	FETCH16();ADD(D ^ 0xFFFF,MB,1);break;
-case 0xff: // *** $ff smi #1 ***
+case 0xff: // *** $ff smi # ***
 	FETCH16();ADD(D,MB ^ 0xFFFF,1);break;

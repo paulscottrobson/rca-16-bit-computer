@@ -77,6 +77,11 @@ void DBGXRender(int *address,int showDisplay) {
 	 	GFXNumber(GRID(4,y),pc & 0xFFFF,16,4,GRIDSIZE,DBGC_ADDRESS,-1);		
 	 	char buffer[64];
 	 	strcpy(buffer,(char *)_mnemonics[CPURead(pc++)]);
+	 	if (buffer[strlen(buffer)-1] == '#') {
+	 		int op = CPURead(pc++);
+	 		op = op + (CPURead(pc++) << 8);
+	 		sprintf(buffer+strlen(buffer)-1,"%04x",op);
+	 	}
 		GFXString(GRID(9,y),buffer,GRIDSIZE,isBrk ? DBGC_HIGHLIGHT:DBGC_DATA,-1);
 	}
 
