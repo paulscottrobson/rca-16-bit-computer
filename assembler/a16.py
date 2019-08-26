@@ -25,6 +25,8 @@ class EvaluatorWorker(object):
 	#						Evaluate an expression
 	#
 	def evaluate(self,expr,identifiers = {}):
+		if expr.startswith("-"):										# lazy unary minus
+			expr = "0"+expr
 		self.identifiers = identifiers
 		expr = expr.lower().replace(" ","")								# remove spaces,l/c
 		expr = re.split("([\\$a-z0-9\\_]*)",expr)						# split into terms/operators
@@ -76,7 +78,7 @@ class EvaluatorWorker(object):
 # *******************************************************************************************
 
 class SimpleOpcode(object):
-	def __init__(self,opcode):
+	def __init__(self,opcode):											# opcode which is just that
 		self.opcode = opcode
 
 	def assemble(self,operand):
@@ -84,13 +86,13 @@ class SimpleOpcode(object):
 			raise AssemblerException("Opcode takes no parameter")
 		return [ self.opcode ]
 
-class ImmediateOpcode(SimpleOpcode):			
-	def assemble(self,operand):
+class ImmediateOpcode(SimpleOpcode):									# immediate or branch opcode
+	def assemble(self,operand):											# (e.g. with 2 byte operand)
 		if operand is None:
 			raise AssemblerException("Opcode requires a parameter")		
 		return [ self.opcode,operand & 0xFF,(operand >> 8) & 0xFF ]
 
-class RegisterOpcode(SimpleOpcode):
+class RegisterOpcode(SimpleOpcode):										# register opcode.
 	def assemble(self,operand):
 		if operand is None:
 			raise AssemblerException("Opcode requires a parameter")		
@@ -98,7 +100,7 @@ class RegisterOpcode(SimpleOpcode):
 			raise AssemblerException("Bad register value")
 		return [ self.opcode+operand ]
 
-class PortOpcode(SimpleOpcode):
+class PortOpcode(SimpleOpcode):											# input/output opcode
 	def assemble(self,operand):
 		if operand is None:
 			raise AssemblerException("Opcode requires a parameter")		
@@ -113,7 +115,7 @@ class PortOpcode(SimpleOpcode):
 # *******************************************************************************************
 
 Opcodes = {
-	"inc":RegisterOpcode(0x10),"dec":RegisterOpcode(0x20),
+	"inc":RegisterOpcode(0x10),"dec":RegisterOpcode(0x20),				# List of 18016 opcodes.
 
 	"glo":RegisterOpcode(0x80),"ghi":RegisterOpcode(0x90),
 	"plo":RegisterOpcode(0xA0),"phi":RegisterOpcode(0xB0),
@@ -161,7 +163,95 @@ Opcodes = {
 #
 # *******************************************************************************************
 
+class AssemblerWorker(object):
+	def __init__(self,baseAddress = 0):
+		self.evaluator = EvaluatorWorker()								# for evaluation
+		self.baseAddress = 0 											# address it starts at
+		self.identifiers = {}											# known identifiers
+		self.opcodes = Opcodes 											# known opcodes
+		for i in range(0,16):											# define RX opcodes.
+			self.identifiers["r{0}".format(i)] = i
+			self.identifiers["r{0:x}".format(i)] = i
+		self.setPass(1)
+	#
+	#		Start a new pass
+	#
+	def setPass(self,p,listing = None):
+		self.passID = p 												# save pass,listing stream
+		self.listing = listing
+		self.pc = self.baseAddress 										# and the current address
+		self.binary = []												# binary put here.
+	#
+	#		Assemble one instruction only. (no lables, equates, comments etc.)
+	#
+	def assembleInstruction(self,instr):
+		m = re.match("^([a-z1-4]+)\\s*(.*)$",instr)						# split into opcode/operand
+		if m is None:
+			raise AssemblerException("Syntax error")
+		code = None
+		if m.group(1).lower() in self.opcodes:							# if known opcode
+			operand = None
+			if m.group(2) != "":										# get operand if exists
+				operand = self.pc 										# dummy value pass 1
+				if self.passID == 2:									# must be defined pass 2
+					operand = self.evaluator.evaluate(m.group(2),self.identifiers)
+																		# get the associated code.
+				code = self.opcodes[m.group(1).lower()].assemble(operand)
+
+		else: 															# try things like byte etc.
+			code = self.assembleControl(m.group(1).lower(),m.group(2).lower())
+
+		if code is not None:											# code generated
+			if self.passID == 2:										# on pass 2
+				self.binary += code 									# add to binary
+				if self.listing is not None:							# output listing if required
+					hexCode = " ".join("{0:02x}".format(c) for c in code)
+					if len(hexCode) > 22:
+						hexCode = hexCode[:20]+" ..."
+					self.listing.write("{0:06x}:{1:26} {2}\n".format(self.pc,hexCode,instr))
+			self.pc += len(code)										# adjust pointe.
+	#
+	#		Assemble other things like byte, word, text and so on.
+	#
+	def assembleControl(self,command,operand):
+		if command == "byte" or command == "word" or command == "long":
+			operand = [x for x in operand.split(",") if x.strip() != ""]
+			operand = [self.evaluator.evaluate(x,self.identifiers) for x in operand]
+			if command == "byte":
+				operand = [x & 255 for x in operand]
+				return operand
+			if command == "word":
+				result = []
+				for op in operand:
+					result.append(op & 0xFF)
+					result.append((op >> 8) & 0xFF)
+				return result
+			if command == "long":
+				result = []
+				for op in operand:
+					result.append(op & 0xFF)
+					result.append((op >> 8) & 0xFF)
+					result.append((op >> 16) & 0xFF)
+					result.append((op >> 24) & 0xFF)
+				return result
+		if command == "text":
+			return [ord(c) for c in operand.strip()]
+
+		raise AssemblerException("Unknown "+command+" "+operand)
+
 if __name__ == "__main__":
-	ew = EvaluatorWorker()
-	print(ew.evaluate("2*x1+$14",{"x1":4}))
-	
+	aw = AssemblerWorker()
+	for asmPass in range(1,3):
+		aw.setPass(asmPass,sys.stdout)
+		aw.assembleInstruction("adc")	
+		aw.assembleInstruction("sep 2")	
+		aw.assembleInstruction("br $4A2")
+		aw.assembleInstruction("lda rc")
+		aw.assembleInstruction("byte 1,2,3,4,511")
+		aw.assembleInstruction("word 510,6,7,8")
+		aw.assembleInstruction("long -2")
+		aw.assembleInstruction("text hello world")
+
+#
+#	Labels/equates/complete.
+#
