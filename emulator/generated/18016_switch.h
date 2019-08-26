@@ -1,5 +1,35 @@
 case 0x00: // *** $00 idl ***
 	(*pP)--;break;
+case 0x01: // *** $01 ldn r1 ***
+	MA = R1;READ16();D = MB;break;
+case 0x02: // *** $02 ldn r2 ***
+	MA = R2;READ16();D = MB;break;
+case 0x03: // *** $03 ldn r3 ***
+	MA = R3;READ16();D = MB;break;
+case 0x04: // *** $04 ldn r4 ***
+	MA = R4;READ16();D = MB;break;
+case 0x05: // *** $05 ldn r5 ***
+	MA = R5;READ16();D = MB;break;
+case 0x06: // *** $06 ldn r6 ***
+	MA = R6;READ16();D = MB;break;
+case 0x07: // *** $07 ldn r7 ***
+	MA = R7;READ16();D = MB;break;
+case 0x08: // *** $08 ldn r8 ***
+	MA = R8;READ16();D = MB;break;
+case 0x09: // *** $09 ldn r9 ***
+	MA = R9;READ16();D = MB;break;
+case 0x0a: // *** $0a ldn ra ***
+	MA = RA;READ16();D = MB;break;
+case 0x0b: // *** $0b ldn rb ***
+	MA = RB;READ16();D = MB;break;
+case 0x0c: // *** $0c ldn rc ***
+	MA = RC;READ16();D = MB;break;
+case 0x0d: // *** $0d ldn rd ***
+	MA = RD;READ16();D = MB;break;
+case 0x0e: // *** $0e ldn re ***
+	MA = RE;READ16();D = MB;break;
+case 0x0f: // *** $0f ldn rf ***
+	MA = RF;READ16();D = MB;break;
 case 0x10: // *** $10 inc r0 ***
 	R0++;break;
 case 0x11: // *** $11 inc r1 ***
@@ -188,8 +218,12 @@ case 0x70: // *** $70 ret ***
 	Return18016();IE = 1;break;
 case 0x71: // *** $71 dis ***
 	Return18016();IE = 0;break;
+case 0x74: // *** $74 adc ***
+	MA = *pX;READ16();ADD(D,MB,DF);break;
 case 0x78: // *** $78 sav ***
 	MA = *pX;MB = T;WRITE16();break;
+case 0x7c: // *** $7c adci # ***
+	MA = *pX;READ16();ADD(D,MB,DF);break;
 case 0x80: // *** $80 glo r0 ***
 	D = R0 & 0xFFFF;break;
 case 0x81: // *** $81 glo r1 ***

@@ -10,6 +10,7 @@
 //			(2) Immediate/Branch take 2 byte operands in low-high order.
 //			(3) Data to/from memory and I/O is done in 16 bit chunks
 //			(4) LDA/RET/DIS/OUT adjust memory by two rather than one.
+//			(5) LDN, ADC and ADCI have been added from the 1802.
 //
 // ********************************************************************************
 // ********************************************************************************
@@ -80,7 +81,7 @@ B0-BF 	"PHI R@R"		R@R = (R@R & 0x0000FFFF) | (D << 16)
 // ********************************************************************************
 
 40-4F 	"LDA R@R"		MA = R@R;R@R += 2;READ16();D = MB
-50-5F 	"STA R@R"		MA = R@R;MB = D;WRITE16()
+50-5F 	"STR R@R"		MA = R@R;MB = D;WRITE16()
 
 // ********************************************************************************
 //									ALU Operations
@@ -95,6 +96,7 @@ F2 		"AND" 			MA = *pX;READ16();D &= MB
 F3 		"XOR" 			MA = *pX;READ16();D ^= MB
 
 F4 		"ADD"			MA = *pX;READ16();ADD(D,MB,0)
+
 F5 		"SD"			MA = *pX;READ16();ADD(D ^ 0xFFFF,MB,1)
 F7 		"SM"			MA = *pX;READ16();ADD(D,MB ^ 0xFFFF,1)
 
@@ -105,6 +107,7 @@ FA 		"ANI #" 		FETCH16();D &= MB
 FB 		"XRI #" 		FETCH16();D ^= MB
 
 FC 		"ADI #"			FETCH16();ADD(D,MB,0)
+
 FD 		"SDI #"			FETCH16();ADD(D ^ 0xFFFF,MB,1)
 FF 		"SMI #"			FETCH16();ADD(D,MB ^ 0xFFFF,1)
 
@@ -154,3 +157,10 @@ E0-EF 	"SEX R@R"		SETX(0x@R)
 
 69-6F 	"INP @P"		MA = *pX;MB = INPUT@P();WRITE16()
 
+// ********************************************************************************
+//						   Borrowed 1802 Instructions
+// ********************************************************************************
+
+01-0F 	"LDN R@R"		MA = R@R;READ16();D = MB
+74 		"ADC"			MA = *pX;READ16();ADD(D,MB,DF)
+7C 		"ADCI #"		MA = *pX;READ16();ADD(D,MB,DF)
